@@ -17,17 +17,14 @@ class BrainTumorViewer(QMainWindow):
         self.setWindowTitle("NeuroScan - Brain Tumor Segmentation")
         self.setGeometry(100, 100, 1400, 900)
         
-        # Central widget
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
         
-        # 3D Viewer (PyVista Qt Widget)
         self.plotter = QtInteractor(self)
         self.plotter.set_background("black")
         layout.addWidget(self.plotter)
         
-        # Controls panel
         controls = QWidget()
         controls_layout = QHBoxLayout(controls)
         
@@ -41,7 +38,6 @@ class BrainTumorViewer(QMainWindow):
         
         layout.addWidget(controls)
         
-        # ⏳ Defer heavy model loading until after window is shown
         QTimer.singleShot(0, self.load_model)
 
     def load_model(self):
@@ -60,10 +56,10 @@ class BrainTumorViewer(QMainWindow):
                 self.model, num_classes=3, roi_size=(96,96,96),
                 sw_batch_size=4, overlap=0.5, mode="gaussian"
             )
-            self.status_label.setText("✅ Model loaded. Ready to segment.")
+            self.status_label.setText("Model loaded. Ready to segment.")
             self.status_label.setStyleSheet("color: #4caf50; font-weight: bold;")
         except Exception as e:
-            self.status_label.setText(f"❌ Model load failed: {str(e)[:50]}...")
+            self.status_label.setText(f"Model load failed: {str(e)[:50]}...")
             self.status_label.setStyleSheet("color: #f44336; font-weight: bold;")
             import traceback
             traceback.print_exc()
@@ -74,7 +70,7 @@ class BrainTumorViewer(QMainWindow):
             self, "Select 4 NIfTI files (FLAIR, T1, T1ce, T2)", "", "NIfTI Files (*.nii *.nii.gz)"
         )
         if len(files) != 4:
-            self.status_label.setText("❌ Please select exactly 4 files")
+            self.status_label.setText("Please select exactly 4 files")
             self.status_label.setStyleSheet("color: #f44336;")
             return
             
@@ -83,28 +79,22 @@ class BrainTumorViewer(QMainWindow):
         QApplication.processEvents()
         
         try:
-            # 1️⃣ Load & stack volumes
             imgs = [nib.load(f).get_fdata().astype(np.float32) for f in files]
             vol = np.stack(imgs, axis=-1)  # Shape: (H, W, D, 4)
-            
-            # 2️⃣ Preprocess (Matches Notebook API)
+
             dummy_label = np.zeros(vol.shape[:3], dtype=np.float32)
             meta = {"affine": np.eye(4)}  # Dummy affine matrix
             pipeline = Compose([NormalizeIntensity(keys=["image"], nonzero=True, channel_wise=True)])
             
-            # ✅ FIX: Pass 'meta' as the 2nd positional argument
             proc_result = pipeline({"image": vol, "label": dummy_label}, meta)
             proc_vol = proc_result["image"]
             
-            # 3️⃣ Inference
             logits = self.swi(proc_vol[None, ...])
             probs = keras.ops.sigmoid(logits).numpy().squeeze()
             mask = (probs > 0.5).astype(np.uint8)
             
-            # 4️⃣ Clear & rebuild 3D scene
             self.plotter.clear()
             
-            # Brain surface (translucent)
             brain_mask = vol.mean(axis=-1) > np.percentile(vol.mean(axis=-1), 10)
             if brain_mask.sum() > 0:
                 brain_mesh = self.create_mesh(brain_mask)
@@ -120,17 +110,16 @@ class BrainTumorViewer(QMainWindow):
                     self.plotter.add_mesh(tumor_mesh, color=colors[key], opacity=opacities[key], name=key)
             
             self.plotter.reset_camera()
-            self.status_label.setText("✅ Segmentation complete. Interact with mouse.")
+            self.status_label.setText("Segmentation complete. Interact with mouse.")
             self.status_label.setStyleSheet("color: #4caf50;")
             
         except Exception as e:
             import traceback
             traceback.print_exc()
-            self.status_label.setText(f"❌ Error: {str(e)[:60]}...")
+            self.status_label.setText(f"Error: {str(e)[:60]}...")
             self.status_label.setStyleSheet("color: #f44336;")
 
     def create_mesh(self, mask):
-        """Convert binary mask to PyVista PolyData mesh"""
         if mask.sum() == 0:
             return None
         verts, faces, _, _ = measure.marching_cubes(mask, level=0.5)
@@ -141,7 +130,6 @@ class BrainTumorViewer(QMainWindow):
         return mesh
 
 if __name__ == "__main__":
-    # Set Keras backend before importing medicai/keras models
     import os
     os.environ["KERAS_BACKEND"] = "tensorflow"
     

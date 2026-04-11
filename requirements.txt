@@ -1,0 +1,34 @@
+# ==========================================
+# Core ML Frameworks (matches notebook)
+# ==========================================
+tensorflow
+keras
+numpy
+pandas
+
+# ==========================================
+# Medical Imaging & AI Utilities
+# ==========================================
+# medic-ai @ git+https://github.com/innat/medic-ai.git
+nibabel
+scikit-image
+
+# ==========================================
+# 3D Mesh Generation & Export
+# ==========================================
+trimesh
+pyglet
+
+# ==========================================
+# Web Backend (FastAPI Prototype)
+# ==========================================
+fastapi
+uvicorn[standard]
+python-multipart
+
+# ==========================================
+# Utilities & Debug Visualization
+# ==========================================
+kagglehub
+matplotlib
+pillow
